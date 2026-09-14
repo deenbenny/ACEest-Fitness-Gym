@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-lint:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Compile check (syntax errors)
+        run: python -m py_compile app.py
+
+      - name: Lint with flake8
+        run: flake8 app.py tests/ --max-line-length=100
+
+  test:
+    name: Automated Testing (Pytest)
+    needs: build-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run Pytest suite
+        run: pytest -v
+
+  docker:
+    name: Docker Image Assembly & Containerized Tests
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test stage (runs Pytest inside the container)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          push: false
+          load: false
+          tags: aceest-fitness-gym:test
+
+      - name: Build production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: final
+          push: false
+          load: true
+          tags: aceest-fitness-gym:latest
+
+      - name: Smoke test the running container
+        run: |
+          docker run -d --name aceest -p 5000:5000 aceest-fitness-gym:latest
+          sleep 3
+          curl --fail http://localhost:5000/health
+          docker stop aceest
