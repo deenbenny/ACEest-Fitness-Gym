@@ -70,6 +70,29 @@ Lint the code with:
 flake8 app.py tests/ --max-line-length=100
 ```
 
+## Test Coverage
+
+`tests/test_app.py` contains 12 Pytest cases exercising every route in
+`app.py`, including validation and error paths:
+
+| Test | Verifies |
+|------|----------|
+| `test_home_page` | `GET /` returns 200 with a welcome message |
+| `test_health_check` | `GET /health` returns 200 with `status: ok` |
+| `test_get_workouts_empty` | `GET /workouts` returns an empty list initially |
+| `test_add_workout_success` | `POST /add_workout` with valid data returns 201 and the created workout |
+| `test_add_workout_missing_workout_name` | Missing `workout` field returns 400 |
+| `test_add_workout_missing_duration` | Missing `duration` field returns 400 |
+| `test_add_workout_invalid_duration_type` | Non-numeric `duration` returns 400 |
+| `test_add_workout_negative_duration` | Negative `duration` returns 400 |
+| `test_add_workout_no_body` | Request with no JSON body returns 400 |
+| `test_get_workouts_after_add` | `GET /workouts` reflects a previously added workout |
+| `test_delete_workout_success` | `DELETE /delete_workout/<id>` removes an existing workout and returns 200 |
+| `test_delete_workout_not_found` | Deleting a non-existent id returns 404 |
+
+An `autouse` fixture resets the in-memory `workouts` list before and after
+every test, so tests are isolated and order-independent.
+
 ## Running with Docker
 
 Build and run the production image:
